@@ -699,6 +699,16 @@ impl GpuBackend {
             GpuBackend::Gl => "OpenGL",
         }
     }
+
+    /// Backends this operating system can actually present with.
+    pub fn choices() -> &'static [GpuBackend] {
+        if cfg!(windows) {
+            &[GpuBackend::Auto, GpuBackend::Dx12, GpuBackend::Vulkan, GpuBackend::Gl]
+        } else {
+            // Apple picks Metal under Auto. Vulkan and OpenGL stay selectable.
+            &[GpuBackend::Auto, GpuBackend::Vulkan, GpuBackend::Gl]
+        }
+    }
 }
 
 /// Which GPU draws the window and the preview (applied at start-up).

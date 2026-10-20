@@ -4,7 +4,7 @@
 #[cfg(windows)]
 pub mod app_audio;
 mod audio_capture;
-#[cfg(all(windows, feature = "browser"))]
+#[cfg(feature = "browser")]
 pub mod browser;
 #[cfg(windows)]
 pub mod camera;
@@ -197,13 +197,13 @@ impl SourceRuntime {
             }
             #[cfg(windows)]
             SourceKind::AppAudio { .. } => spawn(&name, move || app_audio::run(k, s)),
-            #[cfg(all(windows, feature = "browser"))]
+            #[cfg(feature = "browser")]
             SourceKind::Browser(_) => {
                 // CEF starts on the calling (UI) thread, which also shuts it down.
                 let _ = browser::ensure_init();
                 spawn(&name, move || browser::run(k, s))
             }
-            #[cfg(not(all(windows, feature = "browser")))]
+            #[cfg(not(feature = "browser"))]
             SourceKind::Browser(_) => {
                 shared.set_error("this build has no browser source (the \"browser\" feature is off)");
                 None

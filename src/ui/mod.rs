@@ -557,7 +557,11 @@ impl StudioApp {
                     (Icon::Film, tr!("Decode, H.264 / AAC encode and MP4 / MOV mux: MediaKit Foundation (MKFF)")),
                     (Icon::LayoutDashboard, tr!("Interface: Sphere UI (Futureboard design system) on egui / wgpu")),
                     (Icon::Radio, tr!("Output: RTMP / RTMPS — YouTube, Twitch, Facebook, Kick, custom")),
-                    (Icon::Monitor, tr!("Capture: DXGI displays, windows, Media Foundation cameras, WASAPI audio")),
+                    (Icon::Monitor, if cfg!(windows) {
+                        tr!("Capture: DXGI displays, windows, Media Foundation cameras, WASAPI audio")
+                    } else {
+                        tr!("Capture: media files, images, text, microphones and system playback (screen, window and camera capture need Windows)")
+                    }),
                     (Icon::Sparkles, tr!("Icons: Lucide (ISC)")),
                 ] {
                     ui.horizontal(|ui| {

@@ -10,7 +10,10 @@ use crate::model::{GpuBackend, PreviewSettings};
 fn backends(b: GpuBackend) -> wgpu::Backends {
     match b {
         GpuBackend::Auto => wgpu::Backends::PRIMARY,
-        GpuBackend::Dx12 => wgpu::Backends::DX12,
+        // A settings file from Windows may still say DX12. That backend does not exist elsewhere.
+        GpuBackend::Dx12 => {
+            if cfg!(windows) { wgpu::Backends::DX12 } else { wgpu::Backends::PRIMARY }
+        }
         GpuBackend::Vulkan => wgpu::Backends::VULKAN,
         GpuBackend::Gl => wgpu::Backends::GL,
     }

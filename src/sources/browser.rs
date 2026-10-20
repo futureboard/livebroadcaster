@@ -1,6 +1,6 @@
 //! Browser source: web pages through the Chromium Embedded Framework (cef-rs), rendered
 //! off-screen. CEF runs its own UI thread (`multi_threaded_message_loop`) and its helper
-//! processes are `lb-browser-helper.exe` next to the studio. Pictures arrive in `on_paint`
+//! processes are `lb-browser-helper` next to the studio. Pictures arrive in `on_paint`
 //! (premultiplied BGRA, converted to the studio's straight RGBA); sound arrives through the
 //! audio handler and goes to the mixer instead of the speakers.
 
@@ -17,7 +17,20 @@ use crate::model::{BrowserSettings as SourceSettings, SourceKind};
 use crate::video::{Change, RgbaImage};
 
 /// Name of the helper executable (CEF's renderer / GPU / utility processes).
+#[cfg(windows)]
 pub const HELPER_EXE: &str = "lb-browser-helper.exe";
+#[cfg(not(windows))]
+pub const HELPER_EXE: &str = "lb-browser-helper";
+
+/// The CEF shared library that has to sit next to the helper.
+#[cfg(windows)]
+const CEF_LIB: &str = "libcef.dll";
+#[cfg(target_os = "linux")]
+const CEF_LIB: &str = "libcef.so";
+#[cfg(target_os = "macos")]
+const CEF_LIB: &str = "Chromium Embedded Framework.framework/Chromium Embedded Framework";
+#[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
+const CEF_LIB: &str = "libcef.so";
 
 /// Browsers created and not yet closed (shutdown waits for them).
 static OPEN: AtomicUsize = AtomicUsize::new(0);
@@ -25,11 +38,11 @@ static OPEN: AtomicUsize = AtomicUsize::new(0);
 static INIT: Mutex<Option<Result<(), String>>> = Mutex::new(None);
 
 /// Where the CEF runtime files are: the helper's directory (next to the studio, or one level up
-/// for test executables in `deps\`).
+/// for test executables in `deps/`).
 fn runtime_dir() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let dir = exe.parent()?;
-    let found = [Some(dir), dir.parent()].into_iter().flatten().find(|d| d.join(HELPER_EXE).exists() && d.join("libcef.dll").exists()).map(PathBuf::from);
+    let found = [Some(dir), dir.parent()].into_iter().flatten().find(|d| d.join(HELPER_EXE).is_file() && d.join(CEF_LIB).exists()).map(PathBuf::from);
     found
 }
 
@@ -49,12 +62,14 @@ pub fn ensure_init() -> Result<(), String> {
 }
 
 fn init() -> Result<(), String> {
-    let dir = runtime_dir().ok_or_else(|| format!("the Chromium runtime (libcef.dll, {HELPER_EXE}) is missing next to the program"))?;
-    // libcef.dll is delay-loaded: load it from the runtime directory before the first call.
+    let dir = runtime_dir().ok_or_else(|| format!("the Chromium runtime ({CEF_LIB}, {HELPER_EXE}) is missing next to the program"))?;
+    // Windows delay-loads libcef.dll: load it from the runtime directory before the first call.
+    // Linux and macOS link it (an `$ORIGIN` rpath on Linux), so it is already mapped.
+    #[cfg(windows)]
     unsafe {
         use windows::core::HSTRING;
         use windows::Win32::System::LibraryLoader::{LoadLibraryExW, LOAD_WITH_ALTERED_SEARCH_PATH};
-        LoadLibraryExW(&HSTRING::from(dir.join("libcef.dll").as_os_str()), None, LOAD_WITH_ALTERED_SEARCH_PATH).map_err(|e| format!("load libcef.dll: {e}"))?;
+        LoadLibraryExW(&HSTRING::from(dir.join(CEF_LIB).as_os_str()), None, LOAD_WITH_ALTERED_SEARCH_PATH).map_err(|e| format!("load {CEF_LIB}: {e}"))?;
     }
     let _ = api_hash(sys::CEF_API_VERSION_LAST, 0);
     let cache = crate::config::config_dir().join("browser");
@@ -77,7 +92,7 @@ fn init() -> Result<(), String> {
     let args = args::Args::new();
     let mut app = StudioApp::new();
     if initialize(Some(args.as_main_args()), Some(&settings), Some(&mut app), std::ptr::null_mut()) != 1 {
-        return Err("CEF failed to start (see browser\\cef.log in the settings folder)".into());
+        return Err("CEF failed to start (see browser/cef.log in the settings folder)".into());
     }
     log::info!("browser: CEF {} started", env!("CARGO_PKG_VERSION"));
     Ok(())

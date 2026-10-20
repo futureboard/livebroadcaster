@@ -1,10 +1,16 @@
 //! Windows: embed the application manifest (OS compatibility, per-monitor DPI, common controls
 //! v6) in the executables, and delay-load libcef.dll so the studio starts even without the
 //! Chromium runtime (only the browser source then reports it missing).
+//!
+//! Linux: libcef.so is copied next to the binaries. The dynamic linker does not search that
+//! directory, so the executables and tests get an `$ORIGIN` rpath (`deps/` tests look one up).
 
 fn main() {
     println!("cargo::rerun-if-changed=res/app.manifest");
     let target = std::env::var("TARGET").unwrap_or_default();
+    if target.contains("linux") && std::env::var_os("CARGO_FEATURE_BROWSER").is_some() {
+        println!("cargo::rustc-link-arg=-Wl,-rpath,$ORIGIN:$ORIGIN/..");
+    }
     if !target.contains("windows-msvc") {
         return;
     }

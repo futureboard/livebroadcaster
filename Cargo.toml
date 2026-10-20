@@ -33,14 +33,19 @@ mkff-hwenc = { git = "https://github.com/futureboard/mediakit-foundation", rev =
 # encoders' sample entries for the FLV sequence headers.
 filmcraft-isobmff = { git = "https://github.com/storytold/filmcraft", rev = "9ed9650cad4c9b22cb8d32f4a9ba8050cde20a62" }
 
+# glow stays off (the preview is wgpu). x11 and wayland are not in that set, and without
+# them winit has no Linux platform and fails to compile. Windows ignores both features.
 eframe = { version = "0.31.1", default-features = false, features = [
     "accesskit",
     "default_fonts",
     "persistence",
     "wgpu",
+    "wayland",
+    "x11",
 ] }
-# Same wgpu as egui-wgpu, with the DirectX 12 backend enabled (egui-wgpu turns wgpu's default
-# backends off; DX12's flip-model presentation paces the preview best on Windows).
+# Same wgpu as egui-wgpu. Vulkan (Linux and Windows), GLES and Metal (Apple, via eframe) are
+# target dependencies of wgpu itself; DX12 is the extra Windows backend (flip-model presentation
+# paces the preview best there).
 wgpu = { version = "24.0.5", default-features = false, features = ["dx12", "wgsl"] }
 cpal = "0.18.2"
 ab_glyph = "0.2.32"
@@ -69,6 +74,17 @@ cef = { version = "154.5.0", default-features = false, optional = true }
 [features]
 default = ["browser"]
 browser = ["dep:cef"]
+
+# Feature-unified with eframe's winit. eframe's wayland/x11 features enable the backends but
+# not these: dlopen so one binary runs on either display server, and Adwaita client-side
+# decorations where the compositor draws no title bar of its own.
+[target.'cfg(all(unix, not(target_vendor = "apple")))'.dependencies]
+winit = { version = "0.30.13", default-features = false, features = [
+    "x11",
+    "wayland",
+    "wayland-csd-adwaita",
+    "wayland-dlopen",
+] }
 
 [target.'cfg(windows)'.dependencies]
 # `#[implement]` (COM callbacks: audio activation) refers to this crate by name.

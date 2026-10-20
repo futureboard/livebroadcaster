@@ -57,7 +57,7 @@ fn run(preview: &model::PreviewSettings) -> eframe::Result<()> {
     };
     let r = eframe::run_native("LiveBroadcaster", options, Box::new(|cc| Ok(Box::new(ui::StudioApp::new(cc)))));
     // The sources (and their browsers) are gone with the app.
-    #[cfg(all(windows, feature = "browser"))]
+    #[cfg(feature = "browser")]
     sources::browser::shutdown();
     r
 }

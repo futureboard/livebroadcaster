@@ -216,20 +216,18 @@ fn preview_section(ui: &mut egui::Ui, d: &mut Settings, gpus: &[String], now: &s
         sui::hint(ui, tr!("Pick the GPU your monitor is plugged into: drawing on another GPU adds a copy per frame."));
     });
     sui::property_row(ui, tr!("Graphics API"), LABEL_W, |ui| {
-        sui::segmented(
-            ui,
-            &mut d.preview.backend,
-            &[GpuBackend::Auto, GpuBackend::Dx12, GpuBackend::Vulkan, GpuBackend::Gl].map(|b| (b, None, b.name())),
-            false,
-        );
+        let choices: Vec<_> = GpuBackend::choices().iter().copied().map(|b| (b, None, b.name())).collect();
+        sui::segmented(ui, &mut d.preview.backend, &choices, false);
     });
     if d.preview.backend == GpuBackend::Gl {
         ui.horizontal_wrapped(|ui| {
             sui::icons::icon(ui, Icon::TriangleAlert, 13.0, p.status_warning);
-            ui.label(
-                RichText::new(tr!("OpenGL is the slowest choice here: the compositor and the window share one GL context, and uploads stall it. Use Auto (DirectX 12) unless the others fail."))
-                    .color(p.status_warning),
-            );
+            let hint = if cfg!(windows) {
+                tr!("OpenGL is the slowest choice here: the compositor and the window share one GL context, and uploads stall it. Use Auto (DirectX 12) unless the others fail.")
+            } else {
+                tr!("OpenGL is the slowest choice here: the compositor and the window share one GL context, and uploads stall it. Use Auto (Vulkan) unless the others fail.")
+            };
+            ui.label(RichText::new(hint).color(p.status_warning));
         });
     }
     sui::property_row(ui, tr!("VSync"), LABEL_W, |ui| {
