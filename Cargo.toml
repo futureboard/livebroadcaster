@@ -1,0 +1,119 @@
+[workspace]
+members = [".", "crates/sphere-ui"]
+resolver = "2"
+
+[package]
+name = "live-broadcaster"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.95"
+license = "MIT"
+description = "LiveBroadcaster: an OBS-style live streaming / recording studio on egui, built on MediaKit Foundation (MKFF)"
+publish = false
+
+[[bin]]
+name = "live-broadcaster"
+path = "src/main.rs"
+
+# CEF's renderer / GPU / utility processes for the browser source.
+[[bin]]
+name = "lb-browser-helper"
+path = "src/bin/lb-browser-helper.rs"
+required-features = ["browser"]
+
+[dependencies]
+# Futureboard Sphere UI design system for egui (tokens, components, Lucide icons).
+sphere-ui = { path = "crates/sphere-ui" }
+# MediaKit Foundation: software decode of every container / codec (media sources),
+# H.264 + AAC encode and MP4 / MOV mux (recording, and the elementary streams for RTMP).
+mkff-codecs = { git = "https://github.com/futureboard/mediakit-foundation", rev = "f344379f32ef8623b69b02901a01a35cb50009c1" }
+# MKFF hardware H.264: NVENC / Quick Sync / AMF through their Media Foundation encoders.
+mkff-hwenc = { git = "https://github.com/futureboard/mediakit-foundation", rev = "f344379f32ef8623b69b02901a01a35cb50009c1" }
+# Same pinned revision mkff-codecs uses: only to read the avcC / AudioSpecificConfig of the
+# encoders' sample entries for the FLV sequence headers.
+filmcraft-isobmff = { git = "https://github.com/storytold/filmcraft", rev = "9ed9650cad4c9b22cb8d32f4a9ba8050cde20a62" }
+
+eframe = { version = "0.31.1", default-features = false, features = [
+    "accesskit",
+    "default_fonts",
+    "persistence",
+    "wgpu",
+] }
+# Same wgpu as egui-wgpu, with the DirectX 12 backend enabled (egui-wgpu turns wgpu's default
+# backends off; DX12's flip-model presentation paces the preview best on Windows).
+wgpu = { version = "24.0.5", default-features = false, features = ["dx12", "wgsl"] }
+cpal = "0.18.2"
+ab_glyph = "0.2.32"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp", "gif", "webp"] }
+rayon = "1.10"
+# Blocking on wgpu's adapter / device futures (the headless compositor device).
+pollster = "0.4"
+crossbeam-channel = "0.5"
+parking_lot = "0.12"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+directories = "6"
+rfd = "0.17.2"
+log = "0.4"
+env_logger = { version = "0.11", default-features = false, features = ["auto-color", "humantime"] }
+rand = "0.9"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+webpki-roots = "1"
+raw-window-handle = "0.6"
+sysinfo = { version = "0.39", default-features = false, features = ["system"] }
+# Chromium Embedded Framework (browser source), off-screen rendering. No sandbox: CEF's Windows
+# sandbox needs the app hosted as a DLL under its bootstrap.exe.
+cef = { version = "154.5.0", default-features = false, optional = true }
+
+[features]
+default = ["browser"]
+browser = ["dep:cef"]
+
+[target.'cfg(windows)'.dependencies]
+# `#[implement]` (COM callbacks: audio activation) refers to this crate by name.
+windows-core = "0.62"
+
+[target.'cfg(windows)'.dependencies.windows]
+version = "0.62"
+features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Direct3D11",
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics_Dwm",
+    "Win32_Media_MediaFoundation",
+    "Win32_Storage_Xps",
+    "Win32_System_Com",
+    "Win32_System_Threading",
+    "Win32_System_ProcessStatus",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Shell",
+    "Win32_UI_Controls",
+    "Win32_System_LibraryLoader",
+    "Win32_System_WinRT",
+    "Win32_Globalization",
+    "Win32_Media_Audio",
+    "Win32_System_Variant",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_WinRT_Direct3D11",
+    "Win32_System_WinRT_Graphics_Capture",
+    "Foundation",
+    "Graphics",
+    "Graphics_Capture",
+    "Graphics_DirectX",
+    "Graphics_DirectX_Direct3D11",
+]
+
+# The FilmCraft codec hot loops are 10-50x slower unoptimised; so is the CPU compositor.
+[profile.dev]
+opt-level = 1
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 4

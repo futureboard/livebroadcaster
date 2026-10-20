@@ -1,0 +1,4 @@
+/target
+*.log
+# CEF runtime for the browser source (~590 MB): downloaded by cef-dll-sys on the first build.
+/.cef

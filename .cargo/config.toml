@@ -1,0 +1,4 @@
+# The CEF binary distribution (browser source) is downloaded once into .cef/ by cef-dll-sys and
+# shared by every profile / target directory.
+[env]
+CEF_PATH = { value = ".cef", relative = true }
